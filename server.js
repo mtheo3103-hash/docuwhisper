@@ -9,17 +9,18 @@ const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(express.json());
+// Statischen Ordner 'public' absolut einbinden
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Prüfen ob der API Key geladen wurde
+// API Key überprüfen
 if (!process.env.GEMINI_API_KEY) {
   console.error("⚠️ WARNUNG: GEMINI_API_KEY ist nicht in den Environment Variables gesetzt!");
 }
 
+// Google Gemini API Client initialisieren
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-
-// FIXED: Verwendet den Alias 'gemini-1.5-flash-latest', der vom v1beta-Endpunkt unterstützt wird
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+// Modell auf das stabile Free-Tier-Modell setzen
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 // Endpoint 1: PDF analysieren
 app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
@@ -61,7 +62,7 @@ app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
 
-    console.log("✨ Gemini Antwort erfolgreich generiert.");
+    console.log("✨ Gemini-Analyse erfolgreich abgeschlossen.");
 
     res.json({
       summary: responseText,
