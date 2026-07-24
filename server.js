@@ -2,15 +2,18 @@ const express = require('express');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(express.json());
-app.use(express.static('public'));
 
-// Gemini Client mit dem offiziellen SDK initialisieren
+// Statischen Ordner 'public' absolut einbinden
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Gemini Client initialisieren
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
@@ -74,6 +77,11 @@ app.post('/api/chat', async (req, res) => {
     console.error('Gemini Chat Fehler:', error);
     res.status(500).json({ error: 'Fehler beim Antworten auf die Frage.' });
   }
+});
+
+// Haupt-Route: Liefert immer die index.html aus
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
