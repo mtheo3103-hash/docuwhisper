@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DocuWhisper - AGB Checker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            darkBg: '#0b0d17',
+            cardBg: '#13172b',
+            accentPurple: '#a855f7',
+            accentPink: '#ec4899',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-darkBg text-slate-200 min-h-screen flex flex-col font-sans">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 p-6 bg-slate-950/50 backdrop-blur">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+      <h1 class="text-3xl font-extrabold bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">
+        ⚡ DocuWhisper
+      </h1>
+      <span class="text-xs font-semibold px-3 py-1 rounded-full bg-purple-950/60 text-purple-300 border border-purple-800">
+        AGB & Vertrag-AI
+      </span>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-6xl mx-auto w-full p-6 flex-grow grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
+    
+    <!-- Left Column: Upload -->
+    <section class="bg-cardBg border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col justify-between">
+      <div>
+        <h2 class="text-xl font-bold mb-2 text-purple-400">📄 PDF hochladen</h2>
+        <p class="text-sm text-slate-400 mb-6">Ziehe deine AGB oder deinen Vertrag hier rein, um Klauseln und Haken automatisch zu prüfen.</p>
+        
+        <form id="uploadForm" class="space-y-4">
+          <label class="border-2 border-dashed border-purple-500/40 hover:border-pink-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer bg-slate-900/40 transition">
+            <span class="text-4xl mb-2">📥</span>
+            <span class="text-sm text-slate-300 font-medium" id="fileName">PDF auswählen oder ablegen</span>
+            <input type="file" id="pdfInput" accept="application/pdf" class="hidden" required />
+          </label>
+          
+          <button type="submit" class="w-full py-3 bg-gradient-to-r from-purple-600 via-pink-600 to-red-500 hover:opacity-90 font-bold rounded-xl text-white shadow-lg shadow-pink-500/20 transition">
+            🚀 Analyse starten
+          </button>
+        </form>
+      </div>
+
+      <div id="loading" class="hidden mt-6 text-center text-pink-400 font-semibold animate-pulse">
+        🔍 Analysiere Dokument mit KI...
+      </div>
+    </section>
+
+    <!-- Right Column: Results & Chat -->
+    <section class="bg-cardBg border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col">
+      <h2 class="text-xl font-bold mb-4 text-pink-400">📊 Ergebnisse & Chat</h2>
+      
+      <div id="summaryBox" class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 mb-4 text-sm leading-relaxed whitespace-pre-wrap flex-grow overflow-y-auto max-h-[350px]">
+        Noch kein Dokument analysiert. Lade links eine PDF hoch!
+      </div>
+
+      <!-- Chat Input -->
+      <form id="chatForm" class="hidden space-y-2 mt-2">
+        <label class="text-xs text-slate-400 font-medium">Frage zum Dokument stellen:</label>
+        <div class="flex gap-2">
+          <input type="text" id="chatInput" placeholder="z. B. Wie lang ist die Kündigungsfrist?" class="flex-grow bg-slate-900 border border-purple-500/30 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-pink-500" required />
+          <button type="submit" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg font-bold text-sm text-white">
+            Fragen
+          </button>
+        </div>
+      </form>
+    </section>
+
+  </main>
+
+  <script>
+    let currentPdfText = "";
+
+    const pdfInput = document.getElementById('pdfInput');
+    const fileNameDisplay = document.getElementById('fileName');
+    const uploadForm = document.getElementById('uploadForm');
+    const summaryBox = document.getElementById('summaryBox');
+    const loading = document.getElementById('loading');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+
+    pdfInput.addEventListener('change', () => {
+      if (pdfInput.files[0]) {
+        fileNameDisplay.textContent = pdfInput.files[0].name;
+      }
+    });
+
+    uploadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const file = pdfInput.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('pdf', file);
+
+      loading.classList.remove('hidden');
+      summaryBox.textContent = "Analysiere...";
+
+      try {
+        const res = await fetch('/api/analyze', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (data.error) {
+          summaryBox.textContent = "Fehler: " + data.error;
+        } else {
+          summaryBox.textContent = data.summary;
+          currentPdfText = data.extractedText;
+          chatForm.classList.remove('hidden');
+        }
+      } catch (err) {
+        summaryBox.textContent = "Server-Fehler aufgetreten.";
+      } finally {
+        loading.classList.add('hidden');
+      }
+    });
+
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const question = chatInput.value.trim();
+      if (!question || !currentPdfText) return;
+
+      summaryBox.textContent += `\n\n❓ Frage: ${question}\nAntwort wird gesucht...`;
+      chatInput.value = "";
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question, pdfText: currentPdfText })
+        });
+        const data = await res.json();
+        summaryBox.textContent += `\n💡 ${data.answer}`;
+      } catch (err) {
+        summaryBox.textContent += "\nFehler beim Antworten.";
+      }
+    });
+  </script>
+</body>
+</html>
