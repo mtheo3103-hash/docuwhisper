@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
 const app = express();
@@ -10,10 +10,9 @@ const upload = multer({ storage: multer.memoryStorage() });
 app.use(express.json());
 app.use(express.static('public'));
 
-// Gemini Client initialisieren
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
+// Gemini Client mit dem offiziellen SDK initialisieren
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 // Endpoint 1: PDF analysieren
 app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
@@ -23,7 +22,6 @@ app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
     }
 
     const pdfData = await pdfParse(req.file.buffer);
-    // Gemini verarbeitet viel mehr Kontext, wir schicken bis zu 50.000 Zeichen mit!
     const pdfText = pdfData.text.substring(0, 50000);
 
     const prompt = `
@@ -37,13 +35,11 @@ app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
     ${pdfText}
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
 
     res.json({
-      summary: response.text,
+      summary: responseText,
       extractedText: pdfText
     });
   } catch (error) {
@@ -70,12 +66,10 @@ app.post('/api/chat', async (req, res) => {
     Frage: ${question}
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
 
-    res.json({ answer: response.text });
+    res.json({ answer: responseText });
   } catch (error) {
     console.error('Gemini Chat Fehler:', error);
     res.status(500).json({ error: 'Fehler beim Antworten auf die Frage.' });
