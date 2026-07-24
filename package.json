@@ -1,6 +1,7 @@
 {
   "name": "docuwhisper",
   "version": "1.0.0",
+  "description": "KI-gestützter AGB und Vertrag-Checker",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
