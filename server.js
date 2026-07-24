@@ -9,13 +9,16 @@ const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(express.json());
-
-// Statischen Ordner 'public' absolut einbinden
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Gemini Client initialisieren
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// Prüfen ob der API Key geladen wurde
+if (!process.env.GEMINI_API_KEY) {
+  console.error("⚠️ WARNUNG: GEMINI_API_KEY ist nicht in den Environment Variables gesetzt!");
+}
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+// Aktualisiertes Modell
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // Endpoint 1: PDF analysieren
 app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
@@ -24,8 +27,15 @@ app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
       return res.status(400).json({ error: 'Bitte lade eine PDF-Datei hoch.' });
     }
 
+    console.log("📄 PDF empfangen, starte Text-Extraktion...");
     const pdfData = await pdfParse(req.file.buffer);
-    const pdfText = pdfData.text.substring(0, 50000);
+    const pdfText = pdfData.text ? pdfData.text.substring(0, 50000) : "";
+
+    if (!pdfText.trim()) {
+      return res.status(400).json({ error: 'Kein lesbarer Text in der PDF gefunden (evt. gescanntes Bild?).' });
+    }
+
+    console.log(`✅ Text extrahiert (${pdfText.length} Zeichen). Sende an Gemini...`);
 
     const prompt = `
     Du bist ein Experte für AGBs und Verträge. Analysiere diesen Text kurz und prägnant auf Deutsch.
@@ -41,13 +51,16 @@ app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
 
+    console.log("✨ Gemini Antwort erfolgreich generiert.");
+
     res.json({
       summary: responseText,
       extractedText: pdfText
     });
   } catch (error) {
-    console.error('Gemini API Fehler:', error);
-    res.status(500).json({ error: 'Fehler bei der Analyse der PDF.' });
+    // Gibt den genauen Fehler im Render Terminal/Log aus!
+    console.error('❌ Fehler in /api/analyze:', error);
+    res.status(500).json({ error: 'Fehler bei der Analyse der PDF: ' + (error.message || 'Unbekannter Fehler') });
   }
 });
 
@@ -74,7 +87,7 @@ app.post('/api/chat', async (req, res) => {
 
     res.json({ answer: responseText });
   } catch (error) {
-    console.error('Gemini Chat Fehler:', error);
+    console.error('❌ Fehler in /api/chat:', error);
     res.status(500).json({ error: 'Fehler beim Antworten auf die Frage.' });
   }
 });
