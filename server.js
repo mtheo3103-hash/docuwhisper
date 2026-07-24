@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
-const { OpenAI } = require('openai');
+const { GoogleGenAI } = require('@google/genai');
 require('dotenv').config();
 
 const app = express();
@@ -10,8 +10,9 @@ const upload = multer({ storage: multer.memoryStorage() });
 app.use(express.json());
 app.use(express.static('public'));
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+// Gemini Client initialisieren
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
 });
 
 // Endpoint 1: PDF analysieren
@@ -22,10 +23,11 @@ app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
     }
 
     const pdfData = await pdfParse(req.file.buffer);
-    const pdfText = pdfData.text.substring(0, 12000); // Max 12k Zeichen für schnellen Check
+    // Gemini verarbeitet viel mehr Kontext, wir schicken bis zu 50.000 Zeichen mit!
+    const pdfText = pdfData.text.substring(0, 50000);
 
     const prompt = `
-    Du bist ein Experte für AGBs und Verträge. Analysiere diesen Text kurz und prägnant.
+    Du bist ein Experte für AGBs und Verträge. Analysiere diesen Text kurz und prägnant auf Deutsch.
     Heb besonders hervor:
     1. ⚠️ Mögliche Haken oder ungewöhnliche Klauseln
     2. 📅 Kündigungsfristen & Laufzeiten
@@ -35,17 +37,17 @@ app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
     ${pdfText}
     `;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
     });
 
     res.json({
-      summary: response.choices[0].message.content,
+      summary: response.text,
       extractedText: pdfText
     });
   } catch (error) {
-    console.error(error);
+    console.error('Gemini API Fehler:', error);
     res.status(500).json({ error: 'Fehler bei der Analyse der PDF.' });
   }
 });
@@ -60,22 +62,22 @@ app.post('/api/chat', async (req, res) => {
     }
 
     const prompt = `
-    Beantworte die folgende Frage präzise und ausschließlich basierend auf dem Dokumententext.
+    Beantworte die folgende Frage präzise und auf Deutsch, ausschließlich basierend auf dem Dokumententext.
 
     Dokument:
-    ${pdfText.substring(0, 12000)}
+    ${pdfText.substring(0, 50000)}
 
     Frage: ${question}
     `;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
     });
 
-    res.json({ answer: response.choices[0].message.content });
+    res.json({ answer: response.text });
   } catch (error) {
-    console.error(error);
+    console.error('Gemini Chat Fehler:', error);
     res.status(500).json({ error: 'Fehler beim Antworten auf die Frage.' });
   }
 });
