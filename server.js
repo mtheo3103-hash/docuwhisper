@@ -17,8 +17,9 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-// Aktualisiertes Modell
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+// FIXED: Verwendet das stabile & aktuell von Google unterstützte Modell "gemini-1.5-flash"
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 // Endpoint 1: PDF analysieren
 app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
@@ -28,11 +29,20 @@ app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
     }
 
     console.log("📄 PDF empfangen, starte Text-Extraktion...");
-    const pdfData = await pdfParse(req.file.buffer);
-    const pdfText = pdfData.text ? pdfData.text.substring(0, 50000) : "";
+    let pdfText = "";
+
+    try {
+      const pdfData = await pdfParse(req.file.buffer);
+      pdfText = pdfData.text ? pdfData.text.substring(0, 50000) : "";
+    } catch (parseError) {
+      console.error("❌ PDF Parsing Fehler:", parseError.message);
+      return res.status(400).json({ 
+        error: 'Die hochgeladene Datei ist keine gültige PDF. Bitte erstelle die PDF neu (z. B. via Word/Google Docs als PDF exportieren).' 
+      });
+    }
 
     if (!pdfText.trim()) {
-      return res.status(400).json({ error: 'Kein lesbarer Text in der PDF gefunden (evt. gescanntes Bild?).' });
+      return res.status(400).json({ error: 'Kein lesbarer Text in der PDF gefunden (eventuell ein gescanntes Bild?).' });
     }
 
     console.log(`✅ Text extrahiert (${pdfText.length} Zeichen). Sende an Gemini...`);
@@ -58,7 +68,6 @@ app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
       extractedText: pdfText
     });
   } catch (error) {
-    // Gibt den genauen Fehler im Render Terminal/Log aus!
     console.error('❌ Fehler in /api/analyze:', error);
     res.status(500).json({ error: 'Fehler bei der Analyse der PDF: ' + (error.message || 'Unbekannter Fehler') });
   }
