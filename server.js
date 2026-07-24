@@ -18,8 +18,8 @@ if (!process.env.GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
-// FIXED: Verwendet das stabile & aktuell von Google unterstützte Modell "gemini-1.5-flash"
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// FIXED: Verwendet den Alias 'gemini-1.5-flash-latest', der vom v1beta-Endpunkt unterstützt wird
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
 // Endpoint 1: PDF analysieren
 app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
