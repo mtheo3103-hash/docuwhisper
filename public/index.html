@@ -23,7 +23,7 @@
 <body class="bg-darkBg text-slate-200 min-h-screen flex flex-col font-sans">
 
   <!-- Header -->
-  <header class="border-b border-slate-800 p-6 bg-slate-950/50 backdrop-blur">
+  <header class="border-b border-slate-800 p-6 bg-slate-950/50 backdrop-blur relative z-10">
     <div class="max-w-6xl mx-auto flex justify-between items-center">
       <h1 class="text-3xl font-extrabold bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">
         ⚡ DocuWhisper
@@ -35,7 +35,7 @@
   </header>
 
   <!-- Main Content -->
-  <main class="max-w-6xl mx-auto w-full p-6 flex-grow grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
+  <main class="max-w-6xl mx-auto w-full p-6 flex-grow grid grid-cols-1 md:grid-cols-2 gap-8 mt-4 relative z-10">
     
     <!-- Left Column: Upload -->
     <section class="bg-cardBg border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col justify-between">
@@ -82,6 +82,11 @@
     </section>
 
   </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/60 py-6 text-center text-xs text-slate-600 relative z-10">
+    <p>Website hosted by <a href="https://github.com/mtheo3103-hash" target="_blank" class="text-slate-400 hover:underline">mtheo3103</a> &copy; Built with Tailwind CSS</p>
+  </footer>
 
   <script>
     let currentPdfText = "";
